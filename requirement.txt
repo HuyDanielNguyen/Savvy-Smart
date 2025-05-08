@@ -1,1 +1,1 @@
-streamlit supabase seaborn matplotlib plotly bcrypt fpdf httpx python-dotenv
+streamlit supabase-py seaborn matplotlib plotly bcrypt fpdf httpx python-dotenv
