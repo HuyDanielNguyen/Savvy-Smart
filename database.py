@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # === Config ===
-SUPABASE_URL = "https://qyzkaoglhbrziptrnqqb.supabase.co"
+SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")  # Get API key from environment variable
 
 client = httpx.Client(timeout=10.0)  # 10 seconds timeout
