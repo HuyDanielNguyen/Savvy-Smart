@@ -3,7 +3,7 @@ from supabase import create_client, Client
 import httpx
 from dotenv import load_dotenv
 from pathlib import Path
-from streamlit import st
+import streamlit as st
 
 # Load environment variables from .env file
 os.environ.clear()
