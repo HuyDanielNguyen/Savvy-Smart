@@ -43,7 +43,7 @@
 1. **Install Dependencies**
 
 ```bash
-pip install streamlit supabase seaborn matplotlib plotly bcrypt fpdf httpx
+pip install streamlit supabase seaborn matplotlib plotly bcrypt fpdf httpx python-dtenv
 ```
 
 2. **Configure Supabase**
@@ -53,7 +53,7 @@ Update the `SUPABASE_URL` and `SUPABASE_KEY` in `database.py` with your own proj
 3. **Run the App**
 
 ```bash
-streamlit run logic.py
+streamlit run main.py
 ```
 
 ---
