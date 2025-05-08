@@ -1,1 +1,9 @@
-streamlit supabase-py seaborn matplotlib plotly bcrypt fpdf httpx python-dotenv
+streamlit
+supabase-py==1.0.3
+seaborn
+matplotlib
+plotly
+bcrypt
+fpdf
+httpx
+python-dotenv
