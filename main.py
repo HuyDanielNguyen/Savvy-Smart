@@ -54,7 +54,7 @@ def main():
                         <a href="https://www.linkedin.com/in/l%E1%BA%ADp-hu%E1%BB%B3nh-c%C3%B4ng-189505364/" target="_blank">
                             <img src="https://media.licdn.com/dms/image/v2/D4D03AQFNk4o4ArY_7Q/profile-displayphoto-shrink_800_800/B4DZajxX4pH0Ac-/0/1746504353060?e=1752105600&v=beta&t=KyR7OCC_qJDRNAXqqXt8RBiMC--Wx97AV8TFfsIFtWA" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">
                         </a>
-                        <p style="margin: 5px 0 0; font-size: 12px; color: gray;">Lap Nguyen 2</p>
+                        <p style="margin: 5px 0 0; font-size: 12px; color: gray;">Lap Huynh</p>
                     </div>
                 </div>
                 """,
