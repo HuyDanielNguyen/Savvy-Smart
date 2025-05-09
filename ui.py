@@ -170,7 +170,7 @@ class DashboardPage:
         # Interactive summary table with colored net balance
         st.markdown("### Summary Table")
         net_balance = income - expense
-        balance_color = self.COLORS['positive_balance'] if net_balance >= 0 else self.COLORS['negative_balance']
+        balance_color = self.COLORS['savings_card'] if net_balance >= 0 else self.COLORS['expense_card']
         summary_data = {
             "Metric": ["Total Income", "Total Expense", "Net Balance"],
             "Amount": [f"${income:,.2f}", f"${expense:,.2f}", f"<span style='color: {balance_color};'>${net_balance:,.2f}</span>"]
