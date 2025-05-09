@@ -2,10 +2,12 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from logic import User, generate_uuid
-from database import supabase
+from database import supabase # Import the supabase client
 import bcrypt
-from datetime import date
+from datetime import date  # Import date
+from statsmodels.tsa.arima.model import ARIMA
 import io
+
 
 class AuthPage:
     def render(self):
@@ -91,11 +93,10 @@ class AuthPage:
 
 class DashboardPage:
     COLORS = {
-        "income_card": "#4A90E2",
-        "expense_card": "#E94E77",
-        "savings_card": "#50E3C2",
-        "background": "#F5F7FA",
-        "text": "#333333",
+        "income_card": "#2A7B9B",
+        "expense_card": "#833AB4",
+        "positive_balance": "#57C785",
+        "negative_balance": "#FF6F61",
     }
 
     LINKS = {
@@ -103,13 +104,13 @@ class DashboardPage:
     }
 
     def render(self, user: User):
-        # Set background color
-        st.markdown(f"<style>body{{background-color: {self.COLORS['background']};}}</style>", unsafe_allow_html=True)
-
-        # Page title
+        # Page style markdown
         st.markdown(
             f"""
-            <h2 style="color: {self.COLORS['text']}; text-align: center;">Dashboard</h2>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <img src="https://cdn-icons-png.flaticon.com/512/1828/1828817.png" style="width: 30px; height: 30px;">
+                <h2 style="margin: 0;">Dashboard</h2>
+            </div>
             """,
             unsafe_allow_html=True
         )
@@ -124,13 +125,12 @@ class DashboardPage:
             st.info("No transactions yet.")
             return
 
-        # Total income, expense, and savings
+        # Total income & expense
         income = df[df["transaction_type"] == "income"]["amount"].sum()
         expense = df[df["transaction_type"] == "expense"]["amount"].sum()
-        savings = income - expense  # Calculate savings
 
-        # Create a grid layout for cards
-        col1, col2, col3 = st.columns(3)
+        # Display metrics in minimalist cards
+        col1, col2 = st.columns(2)
         with col1:
             st.markdown(
                 f"""
@@ -151,24 +151,14 @@ class DashboardPage:
                 """,
                 unsafe_allow_html=True,
             )
-        with col3:
-            st.markdown(
-                f"""
-                <div style="background: {self.COLORS['savings_card']}; padding: 20px; border-radius: 10px; color: white; text-align: center;">
-                    <h3>Total Savings</h3>
-                    <p style="font-size: 24px; font-weight: bold;">${savings:,.2f}</p>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
 
         # Add a horizontal line
         st.markdown("---")
 
-        # Summary Table
+        # Interactive summary table with colored net balance
         st.markdown("### Summary Table")
         net_balance = income - expense
-        balance_color = self.COLORS['savings_card'] if net_balance >= 0 else self.COLORS['expense_card']
+        balance_color = self.COLORS['positive_balance'] if net_balance >= 0 else self.COLORS['negative_balance']
         summary_data = {
             "Metric": ["Total Income", "Total Expense", "Net Balance"],
             "Amount": [f"${income:,.2f}", f"${expense:,.2f}", f"<span style='color: {balance_color};'>${net_balance:,.2f}</span>"]
@@ -181,10 +171,10 @@ class DashboardPage:
         # Add another horizontal line
         st.markdown("---")
 
-        # Income and Expense Trends
-        st.markdown("### Income and Expense Trends")
+        # Interactive line chart for income and expense trends using Plotly
         df['date'] = pd.to_datetime(df['date'])
         df_grouped = df.groupby(["date", "transaction_type"])["amount"].sum().reset_index()
+        st.markdown("### Income and Expense Trends")
         fig = px.line(
             df_grouped, x="date", y="amount", color="transaction_type",
             labels={"amount": "Amount", "date": "Date", "transaction_type": "Transaction Type"},
@@ -195,36 +185,56 @@ class DashboardPage:
         # Add another horizontal line
         st.markdown("---")
 
-        # Pie Chart for Expense Distribution
-        st.markdown("### Expense Distribution")
-        expense_distribution = df[df["transaction_type"] == "expense"].groupby("category")["amount"].sum().reset_index()
-        fig = px.pie(
-            expense_distribution, values="amount", names="category",
-            title="Expense Distribution by Category",
-            color_discrete_sequence=px.colors.sequential.RdBu
-        )
-        st.plotly_chart(fig, use_container_width=True)
+        # Heatmaps for total income and expense using Plotly
+        st.markdown("### Heatmaps")
+        col3, col4 = st.columns(2)
+        with col3:
+            st.markdown("#### Income Heatmap")
+            income_heatmap = df[df["transaction_type"] == "income"].pivot_table(
+                index="category", columns="date", values="amount", aggfunc="sum", fill_value=0
+            )
+            fig = px.imshow(
+                income_heatmap, labels=dict(x="Date", y="Category", color="Amount"),
+                title="Income Heatmap", color_continuous_scale="Blues"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        with col4:
+            st.markdown("#### Expense Heatmap")
+            expense_heatmap = df[df["transaction_type"] == "expense"].pivot_table(
+                index="category", columns="date", values="amount", aggfunc="sum", fill_value=0
+            )
+            fig = px.imshow(
+                expense_heatmap, labels=dict(x="Date", y="Category", color="Amount"),
+                title="Expense Heatmap", color_continuous_scale="Reds"
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
         # Add another horizontal line
         st.markdown("---")
 
-        # Monthly Trends Bar Chart
-        st.markdown("### Monthly Trends")
-        monthly_trends = df.resample('M', on='date').sum(numeric_only=True).reset_index()
+        # Interactive bar chart for category-wise comparison using Plotly
+        st.markdown("### Category-wise Comparison")
+        category_comparison = df.groupby(["category", "transaction_type"])["amount"].sum().reset_index()
         fig = px.bar(
-            monthly_trends, x="date", y="amount",
-            labels={"amount": "Total Amount", "date": "Month"},
-            title="Monthly Income and Expense Trends"
+            category_comparison, x="category", y="amount", color="transaction_type",
+            labels={"amount": "Amount", "category": "Category", "transaction_type": "Transaction Type"},
+            title="Category-wise Comparison"
         )
         st.plotly_chart(fig, use_container_width=True)
 
         # Add another horizontal line
         st.markdown("---")
 
-        # Interactive Button for Adding Transactions
-        if st.button("Add New Transaction"):
-            st.session_state.page = "Transaction"
-            st.experimental_rerun()
+        # Category Trends
+        st.markdown("### Category Trends")
+        category_trends = df.groupby(["date", "category"])["amount"].sum().reset_index()
+        fig = px.line(
+            category_trends, x="date", y="amount", color="category",
+            labels={"amount": "Amount", "date": "Date", "category": "Category"},
+            title="Category Trends Over Time"
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
         # Add another horizontal line
         st.markdown("---")
@@ -431,8 +441,135 @@ class AnalysisPage:
             )
             st.plotly_chart(fig, use_container_width=True)
 
+
         # Add a horizontal line
         st.markdown("---")
+
+        # Forecasting for income and expense
+        st.markdown("### Forecasting")
+        aggregation_level = st.selectbox("Aggregation Level", ["Daily", "Weekly", "Monthly"], key="aggregation_level")
+
+        # Adjust the maximum forecast days based on the aggregation level
+        if aggregation_level == "Daily":
+            max_forecast_days = 30
+        elif aggregation_level == "Weekly":
+            max_forecast_days = 12  # Approximately 3 months
+        else:  # Monthly
+            max_forecast_days = 6  # Approximately 6 months
+
+        forecast_days = st.slider("Days to Forecast", 1, max_forecast_days, 7, key="forecast_days")
+
+        # Resample data based on aggregation level
+        if aggregation_level == "Weekly":
+            resampled_income = df[df['transaction_type'] == 'income'].resample('W').sum(numeric_only=True)['amount']
+            resampled_expense = df[df['transaction_type'] == 'expense'].resample('W').sum(numeric_only=True)['amount']
+        elif aggregation_level == "Monthly":
+            resampled_income = df[df['transaction_type'] == 'income'].resample('M').sum(numeric_only=True)['amount']
+            resampled_expense = df[df['transaction_type'] == 'expense'].resample('M').sum(numeric_only=True)['amount']
+        else:  # Daily
+            resampled_income = df[df['transaction_type'] == 'income'].resample('D').sum(numeric_only=True)['amount']
+            resampled_expense = df[df['transaction_type'] == 'expense'].resample('D').sum(numeric_only=True)['amount']
+
+        col1, col2 = st.columns(2)
+
+        # Forecast for income
+        with col1:
+            st.markdown("#### Income Forecast")
+            if len(resampled_income) < 2:
+                st.warning("Not enough income data to perform forecasting.")
+            else:
+                try:
+                    model_income = ARIMA(resampled_income, order=(1, 1, 1))
+                    model_fit_income = model_income.fit()
+                    forecast_income = model_fit_income.forecast(steps=forecast_days)
+                    forecast_income.index = pd.date_range(resampled_income.index[-1] + pd.Timedelta(days=1), periods=forecast_days, freq='D')
+
+                    # Plot forecast
+                    fig = px.line()
+                    fig.add_scatter(x=resampled_income.index, y=resampled_income.values, mode='lines', name='Historical Income')
+                    fig.add_scatter(x=forecast_income.index, y=forecast_income.values, mode='lines', name='Forecast Income', line=dict(dash='dot'))
+                    fig.update_layout(title="Income Forecast", xaxis_title="Date", yaxis_title="Amount")
+                    st.plotly_chart(fig, use_container_width=True)
+
+                except Exception as e:
+                    st.error(f"Income Forecasting failed: {e}")
+
+        # Forecast for expense
+        with col2:
+            st.markdown("#### Expense Forecast")
+            if len(resampled_expense) < 2:
+                st.warning("Not enough expense data to perform forecasting.")
+            else:
+                try:
+                    model_expense = ARIMA(resampled_expense, order=(1, 1, 1))
+                    model_fit_expense = model_expense.fit()
+                    forecast_expense = model_fit_expense.forecast(steps=forecast_days)
+                    forecast_expense.index = pd.date_range(resampled_expense.index[-1] + pd.Timedelta(days=1), periods=forecast_days, freq='D')
+
+                    # Plot forecast
+                    fig = px.line()
+                    fig.add_scatter(x=resampled_expense.index, y=resampled_expense.values, mode='lines', name='Historical Expense')
+                    fig.add_scatter(x=forecast_expense.index, y=forecast_expense.values, mode='lines', name='Forecast Expense', line=dict(dash='dot'))
+                    fig.update_layout(title="Expense Forecast", xaxis_title="Date", yaxis_title="Amount")
+                    st.plotly_chart(fig, use_container_width=True)
+
+                except Exception as e:
+                    st.error(f"Expense Forecasting failed: {e}")
+
+        # Add a horizontal line
+        st.markdown("---")
+
+        # Pie Chart for Transaction Distribution
+        st.markdown("### Transaction Distribution")
+        transaction_distribution = df.groupby("transaction_type")["amount"].sum().reset_index()
+        fig = px.pie(
+            transaction_distribution, values="amount", names="transaction_type",
+            title="Transaction Distribution by Type",
+            color_discrete_sequence=px.colors.sequential.RdBu
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Add a horizontal line
+        st.markdown("---")
+
+        # Detailed Table for Transactions
+        st.markdown("### Detailed Transactions Table")
+        st.dataframe(df, use_container_width=True)
+
+        # Add a horizontal line
+        st.markdown("---")
+
+        # Comparison of Income and Expense by Category
+        st.markdown("### Income vs Expense by Category")
+
+        category_comparison = df.groupby(["category", "transaction_type"])["amount"].sum().unstack(fill_value=0).reset_index()
+
+        if 'income' in category_comparison.columns and 'expense' in category_comparison.columns:
+            category_comparison["Net"] = category_comparison["income"] - category_comparison["expense"]
+        elif 'expense' in category_comparison.columns:
+            category_comparison["Net"] = -category_comparison["expense"]
+        elif 'income' in category_comparison.columns:
+            category_comparison["Net"] = category_comparison["income"]
+        else:
+            numeric_cols = category_comparison.select_dtypes(include='number').columns
+            category_comparison["Net"] = category_comparison[numeric_cols].sum(axis=1)
+
+        st.dataframe(category_comparison, use_container_width=True)
+
+        # Add a horizontal line
+        st.markdown("---")
+
+        # Bar Chart for Net Balance by Category
+        st.markdown("### Net Balance by Category")
+        fig = px.bar(
+            category_comparison, x="category", y="Net",
+            labels={"Net": "Net Balance", "category": "Category"},
+            title="Net Balance by Category",
+            color="Net",
+            color_continuous_scale=px.colors.sequential.Viridis
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
 
 class ProfilePage:
     def render(self, user: User):
