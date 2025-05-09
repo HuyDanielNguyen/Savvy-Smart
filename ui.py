@@ -6,6 +6,8 @@ from database import supabase # Import the supabase client
 import bcrypt
 from datetime import date  # Import date
 from statsmodels.tsa.arima.model import ARIMA
+import io
+
 
 class AuthPage:
     def render(self):
